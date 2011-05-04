@@ -2,48 +2,96 @@
 package com.codeminders.ardrone;
 
 import java.io.IOException;
-import java.net.*;
-import java.util.concurrent.BlockingQueue;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.*;
+import java.util.Iterator;
+import java.util.Set;
 
 public class NavDataReader implements Runnable
 {
     private static final int       BUFSIZE = 4096;
-    private DatagramSocket         navdata_socket;
-    private BlockingQueue<NavData> navdata_queue;
-    private ARDrone                drone;
 
-    public NavDataReader(ARDrone drone, DatagramSocket navdata_socket, BlockingQueue<NavData> navdata_queue)
+    private DatagramChannel        channel;
+    private ARDrone                drone;
+    private Selector               selector;
+    private boolean                done;
+
+    public NavDataReader(ARDrone drone, InetAddress drone_addr, int navdata_port)
+            throws IOException
     {
         this.drone = drone;
-        this.navdata_socket = navdata_socket;
-        this.navdata_queue = navdata_queue;
+
+        channel = DatagramChannel.open();
+        channel.configureBlocking(false);
+        channel.connect(new InetSocketAddress(drone_addr, navdata_port));
     }
 
     @Override
     public void run()
     {
-        byte[] inbuf = new byte[BUFSIZE];
-        DatagramPacket packet = new DatagramPacket(inbuf, inbuf.length);
-        while(true)
+        try
         {
-            try
+            selector = Selector.open();
+            channel.register(selector, SelectionKey.OP_READ);
+
+            ByteBuffer inbuf = ByteBuffer.allocate(BUFSIZE);
+            done = false;
+            while(!done)
             {
-                navdata_socket.receive(packet);
-            } catch(IOException e)
-            {
-                drone.changeToErrorState(e);
-                break;
+                selector.select();
+                if(done)
+                {
+                    disconnect();
+                    break;
+                }
+                Set readyKeys = selector.selectedKeys();
+                Iterator iterator = readyKeys.iterator();
+                while(iterator.hasNext())
+                {
+                    SelectionKey key = (SelectionKey) iterator.next();
+                    iterator.remove();
+                    if(key.isReadable())
+                    {
+                        inbuf.clear();
+                        channel.read(inbuf);
+
+                        NavData nd = NavData.createFromData(inbuf.array());
+                        drone.navDataReceived(nd);
+                    }
+                }
             }
-            int numBytesReceived = packet.getLength();
-            NavData nd = NavData.createFromData(inbuf, numBytesReceived);
-            navdata_queue.add(nd);
+        } catch(IOException e)
+        {
+            drone.changeToErrorState(e);
+        }
+
+    }
+
+    private void disconnect()
+    {
+        try
+        {
+            selector.close();
+        } catch(IOException iox)
+        {
+            // Ignore
+        }
+
+        try
+        {
+            channel.disconnect();
+        } catch(IOException iox)
+        {
+            // Ignore
         }
     }
 
     public void stop()
     {
-        // TODO Auto-generated method stub
-
+        done = true;
+        selector.wakeup();
     }
 
 }
