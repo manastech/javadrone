@@ -1,7 +1,13 @@
 package com.codeminders.ardrone;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 public class NavData
 {
+    private static final Logger log = Logger.getLogger("NavData");
+
+
     public static enum Mode { BOOTSTRAP, DEMO }
     public static enum ControlAlgorithm { EULER_ANGELS_CONTROL, ANGULAR_SPEED_CONTROL }
 
@@ -248,44 +254,39 @@ public class NavData
     {
         NavData data = new NavData();
 
-        System.err.println("NavData packet received. len: " + buf.length);
+//        log.finest("NavData packet received. len: " + buf.length);
         int offset = 0;
 
         data.mode = (buf.length == 24) ? NavData.Mode.BOOTSTRAP : NavData.Mode.DEMO;
-        System.err.print("Mode: " + data.getMode() + " ");
+//        log.finest("Mode: " + data.getMode());
 
-        int header = byteArrayToInt(buf, offset);
+        //int header = byteArrayToInt(buf, offset);
         offset += 4;
 
         int state = byteArrayToInt(buf, offset);
         offset += 4;
 
-        data.sequence = byteArrayToInt(buf, offset);
-        offset += 4;
-        System.err.print("Sequence: " + data.getSequence() + " ");
+//        data.sequence = byteArrayToInt(buf, offset);
+//        offset += 4;
+//        log.finest("Sequence: " + data.getSequence());
 
-        int vision = byteArrayToInt(buf, offset);
-        offset += 4;
-        System.err.print("Vision: 0x" + Integer.toHexString(vision) + " ");
+//        int vision = byteArrayToInt(buf, offset);
+//        offset += 4;
+//        System.err.print("Vision: " + vision);
 
         parseState(data, state);
 
-        //System.err.println();
-        //printState(data);
+//        printState(data);
+//        int i = 0;
+//        for(byte b : buf)
+//        {
+//            System.err.print("0x" + Integer.toHexString((int)b) + " ");
+//            if(++i % 24 == 0)
+//                System.err.println();
+//        }
 
-        System.err.println();
+        //TODO: read options
 
-        /*
-        int i = 0;
-        for(byte b : buf)
-        {
-            System.err.print("0x" + Integer.toHexString((int)b) + " ");
-            if(++i % 24 == 0)
-                System.err.println();
-        }
-        System.err.println();
-        System.err.println();
-        */
         //TODO: calculate checksum
 
         return data;
@@ -294,37 +295,41 @@ public class NavData
     @SuppressWarnings("unused")
     private static void printState(NavData data)
     {
-        System.err.println("IsFlying: " + data.isFlying());
-        System.err.println("IsVideoEnabled: " + data.isVideoEnabled());
-        System.err.println("IsVisionEnabled: " + data.isVisionEnabled());
-        System.err.println("controlAlgo: " + data.getControlAlgorithm());
-        System.err.println("AltitudeControlActive: " + data.isAltitudeControlActive());
-        System.err.println("IsUserFeedbackOn: " + data.isUserFeedbackOn());
-        System.err.println("ControlReceived: " + data.isVideoEnabled());
-        System.err.println("IsTrimReceived: " + data.isTrimReceived());
-        System.err.println("IsTrimRunning: " + data.isTrimRunning());
-        System.err.println("IsTrimSucceeded: " + data.isTrimSucceeded());
-        System.err.println("IsNavDataDemoOnly: " + data.isNavDataDemoOnly());
-        System.err.println("IsNavDataBootstrap: " + data.isNavDataBootstrap());
-        System.err.println("IsMotorsDown: " + data.isMotorsDown());
-        System.err.println("IsGyrometersDown: " + data.isGyrometersDown());
-        System.err.println("IsBatteryLow: " + data.isBatteryTooLow());
-        System.err.println("IsBatteryHigh: " + data.isBatteryTooHigh());
-        System.err.println("IsTimerElapsed: " + data.isTimerElapsed());
-        System.err.println("isNotEnoughPower: " + data.isNotEnoughPower());
-        System.err.println("isAngelsOutOufRange: " + data.isAngelsOutOufRange());
-        System.err.println("isTooMuchWind: " + data.isTooMuchWind());
-        System.err.println("isUltrasonicSensorDeaf: " + data.isUltrasonicSensorDeaf());
-        System.err.println("isCutoutSystemDetected: " + data.isCutoutSystemDetected());
-        System.err.println("isPICVersionNumberOK: " + data.isPICVersionNumberOK());
-        System.err.println("isATCodedThreadOn: " + data.isATCodedThreadOn());
-        System.err.println("isNavDataThreadOn: " + data.isNavDataThreadOn());
-        System.err.println("isVideoThreadOn: " + data.isVideoThreadOn());
-        System.err.println("isAcquisitionThreadOn: " + data.isAcquisitionThreadOn());
-        System.err.println("isControlWatchdogDelayed: " + data.isControlWatchdogDelayed());
-        System.err.println("isADCWatchdogDelayed: " + data.isADCWatchdogDelayed());
-        System.err.println("isCommunicationProblemOccurred: " + data.isCommunicationProblemOccurred());
-        System.err.println("IsEmergency: " + data.isEmergency());
+        StringBuffer sb = new StringBuffer();
+            
+        sb.append("IsFlying: " + data.isFlying() + "\n");
+        sb.append("IsVideoEnabled: " + data.isVideoEnabled() + "\n");
+        sb.append("IsVisionEnabled: " + data.isVisionEnabled() + "\n");
+        sb.append("controlAlgo: " + data.getControlAlgorithm() + "\n");
+        sb.append("AltitudeControlActive: " + data.isAltitudeControlActive() + "\n");
+        sb.append("IsUserFeedbackOn: " + data.isUserFeedbackOn() + "\n");
+        sb.append("ControlReceived: " + data.isVideoEnabled() + "\n");
+        sb.append("IsTrimReceived: " + data.isTrimReceived() + "\n");
+        sb.append("IsTrimRunning: " + data.isTrimRunning() + "\n");
+        sb.append("IsTrimSucceeded: " + data.isTrimSucceeded() + "\n");
+        sb.append("IsNavDataDemoOnly: " + data.isNavDataDemoOnly() + "\n");
+        sb.append("IsNavDataBootstrap: " + data.isNavDataBootstrap() + "\n");
+        sb.append("IsMotorsDown: " + data.isMotorsDown() + "\n");
+        sb.append("IsGyrometersDown: " + data.isGyrometersDown() + "\n");
+        sb.append("IsBatteryLow: " + data.isBatteryTooLow() + "\n");
+        sb.append("IsBatteryHigh: " + data.isBatteryTooHigh() + "\n");
+        sb.append("IsTimerElapsed: " + data.isTimerElapsed() + "\n");
+        sb.append("isNotEnoughPower: " + data.isNotEnoughPower() + "\n");
+        sb.append("isAngelsOutOufRange: " + data.isAngelsOutOufRange() + "\n");
+        sb.append("isTooMuchWind: " + data.isTooMuchWind() + "\n");
+        sb.append("isUltrasonicSensorDeaf: " + data.isUltrasonicSensorDeaf() + "\n");
+        sb.append("isCutoutSystemDetected: " + data.isCutoutSystemDetected() + "\n");
+        sb.append("isPICVersionNumberOK: " + data.isPICVersionNumberOK() + "\n");
+        sb.append("isATCodedThreadOn: " + data.isATCodedThreadOn() + "\n");
+        sb.append("isNavDataThreadOn: " + data.isNavDataThreadOn() + "\n");
+        sb.append("isVideoThreadOn: " + data.isVideoThreadOn() + "\n");
+        sb.append("isAcquisitionThreadOn: " + data.isAcquisitionThreadOn() + "\n");
+        sb.append("isControlWatchdogDelayed: " + data.isControlWatchdogDelayed() + "\n");
+        sb.append("isADCWatchdogDelayed: " + data.isADCWatchdogDelayed() + "\n");
+        sb.append("isCommunicationProblemOccurred: " + data.isCommunicationProblemOccurred() + "\n");
+        sb.append("IsEmergency: " + data.isEmergency() + "\n");
+
+        log.log(Level.FINEST, sb.toString());
     }
 
 
