@@ -41,21 +41,21 @@ public class ARDrone10NavDataDecoder extends NavDataDecoder {
                     try {
                         notifyDroneWithDecodedNavdata(ARDrone10NavData.createFromData(ByteBuffer.wrap(buffer), len));
                     } catch (NavDataFormatException e) {
-                        log.log(Level.SEVERE, "Failed to decode receivd navdata information", e);
+                        log.info("Failed to decode receivd navdata information: " + e.getMessage());
                     } catch (Exception ex) {
-                        log.log(Level.SEVERE, "Failed to decode receivd navdata information", ex);
+                        log.info("Failed to decode receivd navdata information: " + ex.getMessage());
                     }
                 }
             } catch (IOException e) {
-                log.log(Level.SEVERE, " Error reading data from data input stream. Stopping decoding thread", e);
+                log.info(" Error reading data from data input stream. Stopping decoding thread: " + e.getMessage());
                 try {
                     reader.reconnect();
                 } catch (IOException e1) {
-                    log.log(Level.SEVERE, " Error reconnecting data reader", e);
+                    log.info(" Error reconnecting data reader: " + e.getMessage());
                 }
             }
         } 
-        log.fine("Decodding thread is stopped"); 
+        log.info("Decodding thread is stopped"); 
     }
 
     @Override

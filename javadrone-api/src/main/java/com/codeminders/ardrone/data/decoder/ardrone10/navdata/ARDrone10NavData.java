@@ -349,8 +349,6 @@ public class ARDrone10NavData implements NavData
 
     public static NavData createFromData(ByteBuffer buf, int len) throws NavDataFormatException
     {
-        log.fine("Parsing navdata len=" + len);
-        
         if (ByteOrder.LITTLE_ENDIAN != buf.order()) {
             buf.order(ByteOrder.LITTLE_ENDIAN);
         }

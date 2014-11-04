@@ -253,15 +253,19 @@ public class ARDrone
     }
 
     private void changeState(State newstate) throws IOException
-    {
-        if(newstate == State.ERROR)
-            changeToErrorState(null);
+    { 
+        log.info("changeState: " + newstate);
 
+        if(newstate == State.ERROR) {
+            log.info("New state is ERROR");
+            changeToErrorState(null);
+        }
+            
         synchronized(state_mutex)
         {
             if(state != newstate)
             {
-                log.fine("State changed from " + state + " to " + newstate);
+                log.info("State changed from " + state + " to " + newstate);
                 state = newstate;
 
                 // We automatically switch to DEMO from bootstrap
@@ -280,6 +284,8 @@ public class ARDrone
                     l.ready();
             }
         }
+
+        log.info("end changeState: " + newstate);
     }
 
     public void changeToErrorState(Exception ex)
@@ -294,7 +300,12 @@ public class ARDrone
             {
                 // Ignoring exceptions on disconnection
             }
-            log.log(Level.FINE ,"State changed from " + state + " to " + State.ERROR + " with exception ", ex);
+            if (ex != null) {
+                log.info("State changed from " + state + " to " + State.ERROR + " with null exception.");
+            } else {
+                log.info("State changed from " + state + " to " + State.ERROR + " with exception " + ex.getMessage());    
+            }
+            
             state = State.ERROR;
             state_mutex.notifyAll();
         }
@@ -326,7 +337,7 @@ public class ARDrone
             int version = DEFAULT_DRONE_VERSION;
             try {
                 String versionStr = versionReader.readDroneVersion();
-                log.log(Level.FINER, "Drone version string: " + versionStr);
+                log.info("Drone version string: " + versionStr);
                 version = Integer.parseInt(versionStr.substring(0, versionStr.indexOf('.')));
             } catch (NumberFormatException e) {
                 log.log(Level.SEVERE, "Failed to discover drone version. Using configuration for drone version: " + version, e);
@@ -334,30 +345,43 @@ public class ARDrone
             
             cmd_socket = new DatagramSocket();
 
+
+            log.info("Creating CommandSender");
             cmd_sender = new CommandSender(cmd_queue, this, drone_addr, cmd_socket);
+
+            log.info("Starting CommandSender thread");
             cmd_sending_thread = new Thread(cmd_sender);
             cmd_sending_thread.setName("Command Sender");
             cmd_sending_thread.start();
             
+            log.info("Enabling video");
             enableVideo();
+
+            log.info("Enabling automatic video bitrate");
             enableAutomaticVideoBitrate();
 
+            log.info("Configuring NavDataDecoder");
             NavDataDecoder nav_data_decoder = (null == ext_nav_data_decoder) ?
                     new  ARDrone10NavDataDecoder(this, NAVDATA_BUFFER_SIZE)
                     :
                     ext_nav_data_decoder;
                     
+            log.info("Configuring ARDroneDataReader");
             ARDroneDataReader nav_data_reader = (null == navdataLogger) ? 
                     new LigthUDPDataReader(drone_addr, NAVDATA_PORT, navDataReconnectTimeout) 
                     :
                     new ARDroneDataReaderAndLogWrapper(new LigthUDPDataReader(drone_addr, NAVDATA_PORT, navDataReconnectTimeout), navdataLogger);
                     
+            log.info("Setting up ChannelProcessor");
             drone_nav_channel_processor = new ChannelProcessor(nav_data_reader, nav_data_decoder);
             
+            log.info("Setting up VideoDataDecoder");
             VideoDataDecoder video_data_decoder = (null == ext_video_data_decoder) ? 
                     getVideoDecoder(version)
                     :
                     ext_video_data_decoder;
+
+            log.info("Setting up ARDroneDataReader");
             ARDroneDataReader video_data_reader =  (null == videoLogger) ?  
                     getVideoReader(version)
                     :
@@ -367,10 +391,12 @@ public class ARDrone
                 drone_video_channel_processor = new ChannelProcessor(video_data_reader, video_data_decoder);
             }
 
+            log.info("Changing state to CONNECTING");
             changeState(State.CONNECTING);
 
         } catch(IOException ex)
         {
+            log.info("Couldn't connect to drone: " + ex.getMessage());
             changeToErrorState(ex);
             throw ex;
         }
@@ -406,17 +432,20 @@ public class ARDrone
 
     public void disconnect() throws IOException
     {
+        log.info("Attempting disconnection");
         try
         {
             doDisconnect();
         } finally
         {
+            log.info("Disconnected, changing state to reflect");
             changeState(State.DISCONNECTED);
         }
     }
 
     private void doDisconnect() throws IOException
     {
+        log.info("DoDisconnect");
         if(cmd_queue != null)
             cmd_queue.add(new QuitCommand());
 
@@ -516,9 +545,11 @@ public class ARDrone
     // Callback used by receiver
     protected void navDataReceived(NavData nd)
     {
+        log.info("NavData mode: " + nd.getMode());
+
         if(nd.isBatteryTooLow() || nd.isNotEnoughPower())
         {
-            log.severe("Battery pb " + nd.toString());
+            log.info("Battery pb " + nd.toString());
         }
 
         synchronized(emergency_mutex)
@@ -526,26 +557,29 @@ public class ARDrone
             emergencyMode = nd.isEmergency();
         }
 
+        if (emergencyMode)
+            log.info("Now in emergency mode");
+
         try
         {
             synchronized(state_mutex)
             {
                 if(state != State.CONNECTING && nd.isControlReceived())
                 {
-                    log.fine("Control received! ACK!");
+                    log.info("Control received! ACK!");
                     cmd_queue.add(new ControlCommand(5, 0));
                 }
 
                 if(state == State.TAKING_OFF && nd.getFlyingState() == FlyingState.FLYING)
                 {
-                    log.fine("Take off success");
+                    log.info("Take off success");
                     cmd_queue.clear(); // Maybe we should just remove
                                        // LAND/TAKEOFF comand
                                        // instead of nuking the whole queue?
                     changeState(State.DEMO);
                 } else if(state == State.LANDING && nd.getFlyingState() == FlyingState.LANDED)
                 {
-                    log.fine("Landing success");
+                    log.info("Landing success");
                     cmd_queue.clear(); // Maybe we should just remove
                                        // LAND/TAKEOFF comand
                                        // instead of nuking the whole queue?
@@ -553,7 +587,7 @@ public class ARDrone
                 } else if(state != State.BOOTSTRAP && nd.getMode() == Mode.BOOTSTRAP)
                 {
                     changeState(State.BOOTSTRAP);
-                } else if(state == State.BOOTSTRAP && nd.getMode() == Mode.DEMO)
+                } else if((state == State.BOOTSTRAP || state == State.CONNECTING) && nd.getMode() == Mode.DEMO)
                 {
                     changeState(State.DEMO);
                 }
@@ -567,7 +601,7 @@ public class ARDrone
             }
         } catch(IOException e)
         {
-            log.log(Level.SEVERE, "Error changing the state", e);
+            log.info("Error changing the state");
         }
 
         if(state == State.DEMO)

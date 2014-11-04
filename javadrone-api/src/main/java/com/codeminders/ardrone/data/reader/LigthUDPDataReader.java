@@ -8,6 +8,9 @@ import java.net.InetAddress;
 
 import com.codeminders.ardrone.data.ARDroneDataReader;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 public class LigthUDPDataReader implements ARDroneDataReader {
     
     private int                timeout;
@@ -20,6 +23,8 @@ public class LigthUDPDataReader implements ARDroneDataReader {
     private DatagramPacket     trigger_packet;
   
     private InetAddress        drone_addr;
+
+    private Logger             log               = Logger.getLogger(getClass().getName());
     
     public LigthUDPDataReader(InetAddress drone_addr, int data_port, int timeout) throws IOException {
        
@@ -38,6 +43,7 @@ public class LigthUDPDataReader implements ARDroneDataReader {
     }
 
     public void connect() throws IOException {
+        log.info("Disconnecting to reconnect to data port: " + data_port);
         disconnect();
         socket = new DatagramSocket(data_port);
         socket.setSoTimeout(timeout);
