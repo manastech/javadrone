@@ -29,6 +29,7 @@ import com.codeminders.ardrone.data.ARDroneDataReader;
 import com.codeminders.ardrone.data.ChannelProcessor;
 import com.codeminders.ardrone.data.decoder.ardrone10.ARDrone10NavDataDecoder;
 import com.codeminders.ardrone.data.decoder.ardrone10.ARDrone10VideoDataDecoder;
+import com.codeminders.ardrone.data.decoder.ardrone20.ARDrone20VideoDataDecoder;
 import com.codeminders.ardrone.data.logger.ARDroneDataReaderAndLogWrapper;
 import com.codeminders.ardrone.data.logger.DataLogger;
 import com.codeminders.ardrone.data.navdata.FlyingState;
@@ -131,6 +132,7 @@ public class ARDrone
     
     private static final int                NAVDATA_BUFFER_SIZE = 4096;
     private static final int                VIDEO_BUFFER_SIZE = 100 * 1024;
+    private static final int                VIDEO_V2_BUFFER_SIZE = 30 * 160 * 1024; //Max PFrames per IFrame * frameMeanSize 
 
     final static byte[]                     DEFAULT_DRONE_IP  = { (byte) 192, (byte) 168, (byte) 1, (byte) 1 };
 
@@ -387,7 +389,13 @@ public class ARDrone
                     :
                     new ARDroneDataReaderAndLogWrapper(new UDPDataReader(drone_addr, VIDEO_PORT, videoReconnectTimeout), videoLogger);
             
+            log.info("Setting up video processor");
+            
+            if (video_data_reader != null) log.info("Video Data Reader: " + video_data_reader);
+            if (video_data_decoder != null) log.info("Video Data Reader: " + video_data_decoder);
+            
             if (null != video_data_reader && null != video_data_decoder) {
+                log.info("Setting up video channel processor with reader and decoder");
                 drone_video_channel_processor = new ChannelProcessor(video_data_reader, video_data_decoder);
             }
 
@@ -407,7 +415,7 @@ public class ARDrone
             case 1:
                 return   new ARDrone10VideoDataDecoder(this, VIDEO_BUFFER_SIZE);
             case 2:
-                 return null; // no decoder implemented yet
+                 return new ARDrone20VideoDataDecoder(this);
             default:
                 return   new ARDrone10VideoDataDecoder(this, VIDEO_BUFFER_SIZE);
         }
@@ -724,8 +732,13 @@ public class ARDrone
     {
         synchronized(image_listeners)
         {
-            for(DroneVideoListener l : image_listeners)
+            log.info("Video frame received");
+            int i = 0;
+            for(DroneVideoListener l : image_listeners) {
+                log.info("Listener " + i);
                 l.frameReceived(startX, startY, w, h, rgbArray, offset, scansize);
+                i++;
+            }
         }
     }
 
